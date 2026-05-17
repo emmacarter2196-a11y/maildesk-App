@@ -957,11 +957,16 @@ const SettingsView = ({ settings, setSettings, isMobile }: { settings: Settings;
                 {MODEL_OPTIONS[draft.aiProvider].map(m => (<option key={m.id} value={m.id}>{m.label}</option>))}
               </select>
             </div>
-            {draft.aiProvider !== "gemini" && (
-              <div style={{ fontSize: 12, color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: 10 }}>
-                ⚠️ Add the corresponding API key to <code>.env.local</code> and restart.
+            {
+            draft.aiProvider !== "gemini" && (
+              <div style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
+                ℹ️ This provider needs an API key. If you haven't added it yet, add the corresponding key to <code>.env.local</code> (and Vercel) and redeploy. If it's already added, you can ignore this.
               </div>
             )}
+
+
+
+
           </div>
         </section>
 

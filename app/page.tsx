@@ -71,6 +71,66 @@ const Toast = ({ msg, type }: { msg: string; type: string }) => (
   }}>{msg}</div>
 );
 
+// Reusable AI edit box — used in both Draft and Send views
+const RefineWithAI = ({ subject, body, setSubject, setBody, settings, isMobile, onToast }: any) => {
+  const [instruction, setInstruction] = useState("");
+  const [refining, setRefining] = useState(false);
+  const [previous, setPrevious] = useState<{ subject: string; body: string } | null>(null);
+
+  const refine = async () => {
+    if (!instruction.trim() || !body.trim()) return;
+    setRefining(true);
+    // Save current state for undo
+    setPrevious({ subject, body });
+    try {
+      const data = await callAI("edit", { subject, body, instruction }, settings);
+      setSubject(data.subject || subject);
+      setBody(data.body || body);
+      setInstruction("");
+      onToast?.({ msg: "✓ Draft refined — Undo to revert", type: "success" });
+    } catch (e: any) {
+      onToast?.({ msg: `Error: ${e.message}`, type: "error" });
+      setPrevious(null); // No undo state if edit failed
+    }
+    setRefining(false);
+  };
+
+  const undo = () => {
+    if (!previous) return;
+    setSubject(previous.subject);
+    setBody(previous.body);
+    setPrevious(null);
+    onToast?.({ msg: "✓ Reverted to previous version", type: "info" });
+  };
+
+  if (!body.trim()) return null; // Don't show until there's a draft to edit
+
+  return (
+    <div style={{
+      background: "#fef9c3", borderRadius: 10, padding: 14, marginTop: 16,
+      border: "1px solid #fde047",
+    }}>
+      <label style={S.label}>🪄 Refine with AI</label>
+      <div style={{ display: "flex", gap: 8, flexDirection: isMobile ? "column" : "row" }}>
+        <input value={instruction} onChange={e => setInstruction(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && refine()}
+          placeholder="e.g. shorter, more formal, less apologetic"
+          style={{ ...S.input, flex: 1, background: "#fff" }} />
+        <button onClick={refine} disabled={refining || !instruction.trim()}
+          style={{ ...S.btn(ACCENT, "#fff", refining || !instruction.trim()), justifyContent: "center" }}>
+          {refining ? <Spinner /> : "Refine"}
+        </button>
+        {previous && (
+          <button onClick={undo}
+            style={{ ...S.btn("#f1f5f9", "#475569", false), justifyContent: "center" }}>
+            ↶ Undo
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const NAV = [
   { key: "draft", label: "Draft", fullLabel: "Draft Email", icon: "✏️" },
   { key: "inbox", label: "Inbox", fullLabel: "Read Inbox", icon: "📬" },
@@ -191,6 +251,9 @@ const DraftView = ({ settings, isMobile }: { settings: Settings; isMobile: boole
             placeholder="Your email body will appear here…"
             style={{ ...S.input, resize: "vertical", lineHeight: 1.65 }} /></div>
       </div>
+
+      <RefineWithAI subject={subject} body={body} setSubject={setSubject} setBody={setBody}
+        settings={settings} isMobile={isMobile} onToast={setToast} />
 
       <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "flex-end", flexDirection: isMobile ? "column" : "row" }}>
         <button onClick={() => navigator.clipboard.writeText(`To: ${to}\nSubject: ${subject}\n\n${body}`)}
@@ -403,6 +466,9 @@ const SendView = ({ settings, isMobile }: { settings: Settings; isMobile: boolea
           </div>
         )}
       </div>
+
+      <RefineWithAI subject={subject} body={body} setSubject={setSubject} setBody={setBody}
+        settings={settings} isMobile={isMobile} onToast={setToast} />
 
       <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "flex-end" }}>
         <button onClick={send} disabled={sending || !to || !subject || !body}
@@ -957,16 +1023,11 @@ const SettingsView = ({ settings, setSettings, isMobile }: { settings: Settings;
                 {MODEL_OPTIONS[draft.aiProvider].map(m => (<option key={m.id} value={m.id}>{m.label}</option>))}
               </select>
             </div>
-            {
-            draft.aiProvider !== "gemini" && (
+            {draft.aiProvider !== "gemini" && (
               <div style={{ fontSize: 12, color: "#475569", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: 10 }}>
                 ℹ️ This provider needs an API key. If you haven't added it yet, add the corresponding key to <code>.env.local</code> (and Vercel) and redeploy. If it's already added, you can ignore this.
               </div>
             )}
-
-
-
-
           </div>
         </section>
 

@@ -76,12 +76,14 @@ const RefineWithAI = ({ subject, body, setSubject, setBody, settings, isMobile, 
   const [instruction, setInstruction] = useState("");
   const [refining, setRefining] = useState(false);
   const [previous, setPrevious] = useState<{ subject: string; body: string } | null>(null);
+  const [next, setNext] = useState<{ subject: string; body: string } | null>(null);
 
   const refine = async () => {
     if (!instruction.trim() || !body.trim()) return;
     setRefining(true);
-    // Save current state for undo
+    // Save current state for undo, clear any redo state (new edit invalidates redo)
     setPrevious({ subject, body });
+    setNext(null);
     try {
       const data = await callAI("edit", { subject, body, instruction }, settings);
       setSubject(data.subject || subject);
@@ -97,10 +99,22 @@ const RefineWithAI = ({ subject, body, setSubject, setBody, settings, isMobile, 
 
   const undo = () => {
     if (!previous) return;
+    // Save current as "next" so we can redo
+    setNext({ subject, body });
     setSubject(previous.subject);
     setBody(previous.body);
     setPrevious(null);
-    onToast?.({ msg: "✓ Reverted to previous version", type: "info" });
+    onToast?.({ msg: "✓ Reverted — Redo to bring it back", type: "info" });
+  };
+
+  const redo = () => {
+    if (!next) return;
+    // Save current as "previous" so we can undo again
+    setPrevious({ subject, body });
+    setSubject(next.subject);
+    setBody(next.body);
+    setNext(null);
+    onToast?.({ msg: "✓ Restored refined version", type: "info" });
   };
 
   if (!body.trim()) return null; // Don't show until there's a draft to edit
@@ -124,6 +138,12 @@ const RefineWithAI = ({ subject, body, setSubject, setBody, settings, isMobile, 
           <button onClick={undo}
             style={{ ...S.btn("#f1f5f9", "#475569", false), justifyContent: "center" }}>
             ↶ Undo
+          </button>
+        )}
+        {next && (
+          <button onClick={redo}
+            style={{ ...S.btn("#f1f5f9", "#475569", false), justifyContent: "center" }}>
+            ↷ Redo
           </button>
         )}
       </div>
